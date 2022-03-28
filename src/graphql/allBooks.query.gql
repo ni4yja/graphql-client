@@ -1,7 +1,7 @@
-query AllBooks {
-  allBooks {
-    id
-    title
-    rating
+#import './book.fragment.gql'
+
+query AllBooks($search: String) {
+  allBooks(search: $search) {
+    ...BookFragment
   }
 }
