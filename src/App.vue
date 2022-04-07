@@ -24,6 +24,7 @@
               {{ book.title }} - {{ book.rating }}
               <button @click="activeBook = book">Edit rating</button>
               <button @click="addBookToFavorites({ book })">Add to favorites</button>
+              <button @click="deleteAndUpdateBook(book.id)">Delete book</button>
             </p>
           </div>
           <div class="list">
@@ -40,9 +41,10 @@
 import { ref } from 'vue'
 import { useQuery, useResult, useMutation } from '@vue/apollo-composable'
 import ADD_BOOK_TO_FAVORITES_MUTATION from './graphql/addBookToFavorites.mutation.gql'
+import DELETE_BOOK_MUTATION from './graphql/deleteBook.mutation.gql'
 import ALL_BOOKS_QUERY from './graphql/allBooks.query.gql'
 import FAVORITE_BOOKS_QUERY from './graphql/favoriteBooks.query.gql'
-import BOOK_SUBSCRIPTION from './graphql/newBook.subscription.gql'
+// import BOOK_SUBSCRIPTION from './graphql/newBook.subscription.gql'
 import EditRating from './components/EditRating.vue'
 import AddBook from './components/AddBook.vue'
 
@@ -68,18 +70,18 @@ export default {
       })
     )
 
-    subscribeToMore(() => ({
-      document: BOOK_SUBSCRIPTION,
-      updateQuery(previousResult, newResult) {
-        const res = {
-          allBooks: [
-            ...previousResult.allBooks,
-            newResult.subscriptionData.data.bookSub
-          ]
-        }
-        return res
-      }
-    }))
+    // subscribeToMore(() => ({
+    //   document: BOOK_SUBSCRIPTION,
+    //   updateQuery(previousResult, newResult) {
+    //     const res = {
+    //       allBooks: [
+    //         ...previousResult.allBooks,
+    //         newResult.subscriptionData.data.bookSub
+    //       ]
+    //     }
+    //     return res
+    //   }
+    // }))
 
     const books = useResult(result, [], data => data.allBooks)
 
@@ -89,7 +91,42 @@ export default {
       ADD_BOOK_TO_FAVORITES_MUTATION
     )
 
-    return { books, searchTerm, loading, error, activeBook, showNewBookForm, favBooksResult, addBookToFavorites }
+    const { mutate: deleteBook } = useMutation(
+      DELETE_BOOK_MUTATION
+    )
+
+    function deleteAndUpdateBook(id) {
+      deleteBook({ id }, {
+        update: (store, { }) => {
+          const data = store.readQuery({
+            query: ALL_BOOKS_QUERY,
+            variables: {
+              search: searchTerm.value,
+            }
+          })
+          const updatedData = data.allBooks.filter(b => b.id !== id)
+          store.writeQuery({
+            query: ALL_BOOKS_QUERY,
+            variables: {
+              search: searchTerm.value,
+            },
+            data: { allBooks: updatedData }
+          })
+        }
+      });
+    }
+
+    return {
+      books,
+      searchTerm,
+      loading,
+      error,
+      activeBook,
+      showNewBookForm,
+      favBooksResult,
+      addBookToFavorites,
+      deleteAndUpdateBook,
+    }
   },
 }
 </script>
